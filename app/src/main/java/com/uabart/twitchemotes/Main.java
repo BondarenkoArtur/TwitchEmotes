@@ -8,22 +8,22 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
+
+import com.nostra13.universalimageloader.core.ImageLoader;
+import com.nostra13.universalimageloader.core.ImageLoaderConfiguration;
 
 import java.util.Map;
 
 public class Main extends AppCompatActivity {
 
     TwitchEmotesGlobal emotes;
-    TextView mLargeText;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        mLargeText = (TextView) findViewById(R.id.large_text);
         setSupportActionBar(toolbar);
 
         FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
@@ -35,13 +35,24 @@ public class Main extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+        ImageLoaderConfiguration config = new ImageLoaderConfiguration.Builder(this)
+                .diskCacheSize(50 * 1024 * 1024) // 50 MiB
+                .build();
+        ImageLoader.getInstance().init(config);
     }
 
-    public void setNewLargeText(final String ourString) {
+    public void updateView(final TwitchEmotesGlobal emotes) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                mLargeText.setText(ourString);
+                ImageGridFragment fr = new ImageGridFragment();
+                for (Map.Entry<String, Emotes> emote : emotes.emotes.entrySet()) {
+                    fr.imageNames.add(emote.getKey());
+                    String url = emotes.template.large.replaceAll("\\{image_id\\}", emote.getValue().image_id + "");
+                    fr.imageUrls.add(url);
+                }
+                getSupportFragmentManager().beginTransaction().replace(R.id.main, fr).commit();
             }
         });
     }
@@ -65,19 +76,11 @@ public class Main extends AppCompatActivity {
             return true;
         }
         if (id == R.id.action_load_json) {
-            new JsonParser("https://twitchemotes.com/api_cache/v2/global.json", TwitchEmotesGlobal.class, new JsonParser.MyCallbackInterface() {
+            new JsonParser(TwitchEmotesGlobal.JSON_URL, TwitchEmotesGlobal.class, new JsonParser.MyCallbackInterface() {
                 @Override
                 public void onDownloadFinished(Object result) {
                     emotes = (TwitchEmotesGlobal) result;
-                    StringBuilder string = new StringBuilder();
-                    for (Map.Entry<String, Emotes> emote : emotes.emotes.entrySet()) {
-                        string.append(emote.getKey());
-                        string.append(": ");
-//                            string.append(emote.getValue().description);
-                        string.append(emote.getValue().image_id);
-                        string.append("\n");
-                    }
-                    setNewLargeText(string.toString());
+                    updateView(emotes);
                 }
             });
             Toast.makeText(this, "Loading JSON", Toast.LENGTH_SHORT).show();
