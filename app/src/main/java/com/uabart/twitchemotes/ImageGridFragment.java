@@ -1,7 +1,10 @@
 package com.uabart.twitchemotes;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -10,6 +13,7 @@ import android.view.ViewGroup;
 import android.widget.AbsListView;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
+import android.widget.FrameLayout;
 import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -21,7 +25,10 @@ import com.nostra13.universalimageloader.core.ImageLoader;
 import com.nostra13.universalimageloader.core.assist.FailReason;
 import com.nostra13.universalimageloader.core.listener.ImageLoadingProgressListener;
 import com.nostra13.universalimageloader.core.listener.SimpleImageLoadingListener;
+import com.nostra13.universalimageloader.utils.StorageUtils;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,9 +50,36 @@ public class ImageGridFragment extends Fragment {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 Toast.makeText(getActivity(), "number: " + position, Toast.LENGTH_SHORT).show();
+                saveAndShare(view, position);
             }
         });
         return rootView;
+    }
+
+    private void saveAndShare(View view, int position) {
+        FrameLayout frameLayout = (FrameLayout) view;
+        ImageView imageView = (ImageView) frameLayout.getChildAt(0);
+        BitmapDrawable bitmapDrawable = (BitmapDrawable) imageView.getDrawable();
+        Bitmap yourBitmap = bitmapDrawable.getBitmap();
+        String root = StorageUtils.getCacheDirectory(getContext()).getPath();
+        File myDir = new File(root + "/stickers/");
+        myDir.mkdirs();
+        String fname = "sticker-" + imageNames.get(position) + ".jpg";
+        File file = new File(myDir, fname);
+        if (file.exists()) file.delete();
+        try {
+            FileOutputStream out = new FileOutputStream(file);
+            yourBitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+            Toast.makeText(getActivity(), "Image Saved", Toast.LENGTH_SHORT).show();
+            out.flush();
+            out.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        Intent share = new Intent(Intent.ACTION_SEND);
+        share.setType("image/png");
+        share.putExtra(Intent.EXTRA_STREAM, Uri.parse("file://" + file.getPath()));
+        startActivity(Intent.createChooser(share, "Share Image"));
     }
 
     static class ViewHolder {
